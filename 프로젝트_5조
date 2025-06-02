@@ -1,0 +1,33 @@
+from transformers import YolosImageProcessor, YolosForObjectDetection
+from PIL import Image
+import torch
+import requests
+
+model = YolosForObjectDetection.from_pretrained('hustvl/yolos-tiny')
+processor = YolosImageProcessor.from_pretrained("hustvl/yolos-tiny")
+
+from google.colab import files
+uploaded = files.upload()
+
+for image_name in uploaded.keys():
+    print(f"\n📂 파일명: {image_name}")
+
+    image = Image.open(image_name).convert("RGB")      image.show()
+
+    inputs = processor(images=image, return_tensors="pt")
+    outputs = model(**inputs)
+
+    target_sizes = torch.tensor([image.size[::-1]])
+    results = processor.post_process_object_detection(outputs, threshold=0.9, target_sizes=target_sizes)[0]
+
+    person_count = 0
+    for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
+        if model.config.id2label[label.item()] == "person":
+            person_count += 1
+
+    if person_count == 1:
+        print("🛴 전동 킥보드 1인 탑승으로 판단됩니다.")
+    elif person_count > 1:
+        print(f"🛴 전동 킥보드 {person_count}명 → 다인 탑승으로 판단됩니다.")
+    else:
+        print("❌ 전동 킥보드에 탑승한 사람을 인식하지 못했습니다.") 
